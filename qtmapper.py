@@ -29,29 +29,32 @@ class BitView(QtGui.QWidget):
         self.setLayout(layout)
 
     def make_extra_pixels(self, n):
-        return "\0\0\0\0" * n
+        return bytearray(4 * n)
 
     def paintEvent(self, e):
         if self._image_data is None:
             return
 
         width = self._width
+
         image_data = self._image_data[:]
-        image_data += self.make_extra_pixels(len(image_data) % width)
+
+        if len(self._bits) % width:
+            image_data += self.make_extra_pixels(width)
+
         number_of_pixels = len(image_data) / 4
-        height = number_of_pixels / width
 
-        print width, height, len(self._bits), width * height
+        height = (number_of_pixels / width)
 
-        image = QtGui.QImage(self._image_data,
+        print width, width * height, number_of_pixels, len(self._bits)
+        image = QtGui.QImage(image_data,
                              width,
                              height,
-                             QtGui.QImage.Format_RGB32).copy()
+                             QtGui.QImage.Format_ARGB32).copy()
 
         transform = QtGui.QTransform()
         transform.scale(self._size, self._size)
         image = image.transformed(transform)
-        print image.width(), image.height()
         self.imageLabel.setGeometry(0, 0, image.width(), image.height())
 
         pixmap = QtGui.QPixmap.fromImage(image, QtCore.Qt.AutoColor)
@@ -68,7 +71,6 @@ class BitView(QtGui.QWidget):
             self._image_data[i + 1] = color.green()
             self._image_data[i + 2] = color.red()
             self._image_data[i + 3] = color.alpha()
-        print i, i * 4, len(self._image_data)
 
         self.update()
 
@@ -179,7 +181,8 @@ class Example(QtGui.QWidget):
         self.setPalette(palette)
 
         self.bitViewer = BitView(self)
-        self.bitViewer.set_data("\0" * 32 + "\xff" + "\0")
+        self.bitViewer.set_data("\0" * 32 + "\xff" + "\0" + "\x01")
+        self.bitViewer.set_data("\x55" * 0x10000)
         layout = QtGui.QGridLayout()
         layout.addWidget(self.bitViewer, 0, 0, 2, 1)
         layout.addWidget(btn, 0, 1)
