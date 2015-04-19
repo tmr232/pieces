@@ -28,12 +28,18 @@ class BitView(QtGui.QWidget):
         layout.addWidget(self.scrollArea, 0, 0)
         self.setLayout(layout)
 
+    def make_extra_pixels(self, n):
+        return "\0\0\0\0" * n
+
     def paintEvent(self, e):
         if self._image_data is None:
             return
 
         width = self._width
-        height = len(self._bits) / (self._width)
+        image_data = self._image_data[:]
+        image_data += self.make_extra_pixels(len(image_data) % width)
+        number_of_pixels = len(image_data) / 4
+        height = number_of_pixels / width
 
         print width, height, len(self._bits), width * height
 
@@ -173,6 +179,7 @@ class Example(QtGui.QWidget):
         self.setPalette(palette)
 
         self.bitViewer = BitView(self)
+        self.bitViewer.set_data("\0" * 32 + "\xff" + "\0")
         layout = QtGui.QGridLayout()
         layout.addWidget(self.bitViewer, 0, 0, 2, 1)
         layout.addWidget(btn, 0, 1)
