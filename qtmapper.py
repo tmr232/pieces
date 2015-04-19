@@ -3,7 +3,7 @@ from PySide import QtGui, QtCore
 import bitstring
 import threading
 import operator
-
+import pieces.bits
 
 class BitView(QtGui.QWidget):
     COLOR_ON = QtGui.QColor(120, 120, 255, 255)
@@ -32,15 +32,20 @@ class BitView(QtGui.QWidget):
         if self._image_data is None:
             return
 
+        width = self._width
+        height = len(self._bits) / (self._width)
+
+        print width, height, len(self._bits), width * height
+
         image = QtGui.QImage(self._image_data,
-                             self._width,
-                             len(self._bits) / (self._width * 4),
+                             width,
+                             height,
                              QtGui.QImage.Format_RGB32).copy()
 
         transform = QtGui.QTransform()
         transform.scale(self._size, self._size)
         image = image.transformed(transform)
-
+        print image.width(), image.height()
         self.imageLabel.setGeometry(0, 0, image.width(), image.height())
 
         pixmap = QtGui.QPixmap.fromImage(image, QtCore.Qt.AutoColor)
@@ -57,6 +62,7 @@ class BitView(QtGui.QWidget):
             self._image_data[i + 1] = color.green()
             self._image_data[i + 2] = color.red()
             self._image_data[i + 3] = color.alpha()
+        print i, i * 4, len(self._image_data)
 
         self.update()
 
@@ -79,6 +85,43 @@ class BitView(QtGui.QWidget):
         self.update()
 
 
+class MutatorUI(QtGui.QWidget):
+    """
+    +---------------------------------+
+    |    Title                        |
+    | <----#---------------->  Value  |
+    +---------------------------------+
+    """
+    def __init__(self, *args, **kwargs):
+        super(MutatorUI, self).__init__(*args, **kwargs)
+
+        self.initUI()
+
+    def initUI(self):
+        title = QtGui.QLabel("ROL8", self)
+        slider = QtGui.QSlider(QtCore.Qt.Horizontal, self)
+
+        slider.setRange(0, 7)
+        slider.setValue(0)
+        slider.valueChanged[int].connect(self.sliderEvent)
+
+        value = QtGui.QLineEdit(self)
+        value.setText(str(slider.value()))
+
+        self.title = title
+        self.value = value
+        self.slider = slider
+
+        layout = QtGui.QGridLayout()
+        layout.addWidget(self.title, 0, 0)
+        layout.addWidget(self.slider, 1, 0)
+        layout.addWidget(self.value, 1, 1)
+        self.setLayout(layout)
+
+
+    def sliderEvent(self, value):
+        self.value.setText(str(value))
+
 
 class Test(QtGui.QWidget):
     def __init__(self):
@@ -90,7 +133,9 @@ class Test(QtGui.QWidget):
 
         bv.set_data(data)
         layout = QtGui.QGridLayout()
+        mutator = MutatorUI(self)
         layout.addWidget(bv, 0, 0)
+        layout.addWidget(mutator, 0, 1)
         self.setLayout(layout)
         self.show()
 
@@ -146,7 +191,7 @@ class Example(QtGui.QWidget):
         with open(fname, "rb") as f:
             data = f.read()
 
-        self.bitViewer.set_data(data[:0x10000])
+        self.bitViewer.set_data(data[:0x1000])
         self.update()
 
     def changeSize(self, value):
