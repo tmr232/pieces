@@ -6,21 +6,77 @@ import operator
 
 
 class BitView(QtGui.QWidget):
-    def __init__(self):
-        super(BitView, self).__init__()
+    COLOR_ON = QtGui.QColor(120, 120, 255, 255)
+    COLOR_OFF = QtGui.QColor(255, 255, 255, 255)
 
-        self.size = 4
+    def __init__(self, *args, **kwargs):
+        super(BitView, self).__init__(*args, **kwargs)
+
+        self.size = 10
         self.width = 32
+        self._bits = None
+        self._image_data = None
 
         self.initUI()
 
     def initUI(self):
         self.imageLabel = QtGui.QLabel()
         self.scrollArea = QtGui.QScrollArea(self)
+        self.scrollArea.setWidget(self.imageLabel)
+
+        layout = QtGui.QGridLayout()
+        layout.addWidget(self.scrollArea, 0, 0)
+        self.setLayout(layout)
+
+    def paintEvent(self, e):
+        if self._image_data is None:
+            return
+
+        image = QtGui.QImage(self._image_data,
+                             self.width,
+                             len(self._bits) / (self.width * 4),
+                             QtGui.QImage.Format_RGB32).copy()
+
+        transform = QtGui.QTransform()
+        transform.scale(self.size, self.size)
+        image = image.transformed(transform)
+
+        self.imageLabel.setGeometry(0, 0, image.width(), image.height())
+
+        pixmap = QtGui.QPixmap.fromImage(image, QtCore.Qt.AutoColor)
+        self.imageLabel.setPixmap(pixmap)
+
+    def set_data(self, data):
+        self._bits = bitstring.Bits(bytes=data)
+        self._image_data = bytearray(len(self._bits) * 4)
+
+        for i, bit in enumerate(self._bits):
+            color = self.COLOR_ON if bit else self.COLOR_OFF
+            i *= 4
+            self._image_data[i + 0] = color.blue()
+            self._image_data[i + 1] = color.green()
+            self._image_data[i + 2] = color.red()
+            self._image_data[i + 3] = color.alpha()
+
+        self.update()
+
+
+class Test(QtGui.QWidget):
+    def __init__(self):
+        super(Test, self).__init__()
+
+        data = "".join(map(lambda x: chr(x) * 8, xrange(255))) * 10
+
+        bv = BitView(self)
+
+        bv.set_data(data)
+        layout = QtGui.QGridLayout()
+        layout.addWidget(bv, 0, 0)
+        self.setLayout(layout)
+        self.show()
 
 
 class Example(QtGui.QWidget):
-
     def __init__(self):
         super(Example, self).__init__()
 
@@ -29,7 +85,7 @@ class Example(QtGui.QWidget):
         with open(filename, "rb") as f:
             data = f.read()
         # bits = bitstring.Bits(bytes=data[:0x10000])
-        bits = bitstring.Bits(bytes="".join(map(lambda x:chr(x)*8, xrange(255))))*10
+        bits = bitstring.Bits(bytes="".join(map(lambda x: chr(x) * 8, xrange(255)))) * 10
         print len(bits)
         bit_on = QtGui.QColor(120, 120, 255, 255)
         bit_off = QtGui.QColor(240, 240, 240, 255)
@@ -42,7 +98,6 @@ class Example(QtGui.QWidget):
         self.initUI()
 
     def initUI(self):
-
         self.lbl = QtGui.QLabel(self)
         self.lbl.move(600, 0)
 
@@ -65,7 +120,7 @@ class Example(QtGui.QWidget):
         self.image = QtGui.QLabel()
 
         palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Background, QtGui.QColor(40,40,40))
+        palette.setColor(QtGui.QPalette.Background, QtGui.QColor(40, 40, 40))
         self.setPalette(palette)
 
         scrollArea = QtGui.QScrollArea()
@@ -90,7 +145,7 @@ class Example(QtGui.QWidget):
             data = f.read()
         bits = bitstring.Bits(bytes=data[:0x10000])
 
-        self.data = "".join([chr(x*255)*3 + '\xff' for x in bits])
+        self.data = "".join([chr(x * 255) * 3 + '\xff' for x in bits])
         # self.data = "\xFF" * len(self.data)
         print "opened"
         # print "loaded"
@@ -143,13 +198,15 @@ class Example(QtGui.QWidget):
         print x, y
         print ((y * 200) + x) * 4
 
+
 def main():
     try:
         app = QtGui.QApplication(sys.argv)
-        ex = Example()
+        ex = Test()
         app.exec_()
     except:
         import traceback
+
         traceback.print_exc()
 
 
