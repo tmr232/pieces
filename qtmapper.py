@@ -12,8 +12,8 @@ class BitView(QtGui.QWidget):
     def __init__(self, *args, **kwargs):
         super(BitView, self).__init__(*args, **kwargs)
 
-        self.size = 10
-        self.width = 32
+        self._size = 10
+        self._width = 32
         self._bits = None
         self._image_data = None
 
@@ -33,12 +33,12 @@ class BitView(QtGui.QWidget):
             return
 
         image = QtGui.QImage(self._image_data,
-                             self.width,
-                             len(self._bits) / (self.width * 4),
+                             self._width,
+                             len(self._bits) / (self._width * 4),
                              QtGui.QImage.Format_RGB32).copy()
 
         transform = QtGui.QTransform()
-        transform.scale(self.size, self.size)
+        transform.scale(self._size, self._size)
         image = image.transformed(transform)
 
         self.imageLabel.setGeometry(0, 0, image.width(), image.height())
@@ -60,6 +60,25 @@ class BitView(QtGui.QWidget):
 
         self.update()
 
+    @property
+    def width(self):
+        return self._width
+
+    @width.setter
+    def width(self, value):
+        self._width = value
+        self.update()
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        self._size = value
+        self.update()
+
+
 
 class Test(QtGui.QWidget):
     def __init__(self):
@@ -80,21 +99,6 @@ class Example(QtGui.QWidget):
     def __init__(self):
         super(Example, self).__init__()
 
-        filename = r"C:\Windows\SysWOW64\calc.exe"
-        # filename = __file__
-        with open(filename, "rb") as f:
-            data = f.read()
-        # bits = bitstring.Bits(bytes=data[:0x10000])
-        bits = bitstring.Bits(bytes="".join(map(lambda x: chr(x) * 8, xrange(255)))) * 10
-        print len(bits)
-        bit_on = QtGui.QColor(120, 120, 255, 255)
-        bit_off = QtGui.QColor(240, 240, 240, 255)
-        color = lambda bit: bit_on if bit else bit_off
-        bit_str = lambda bit: chr(color(bit).blue()) + chr(color(bit).green()) + chr(color(bit).red()) + "\xFF"
-        self.data = "".join([bit_str(x) for x in bits])
-        # self.data = "\0\xFF\xFF\xFF"*63000
-        self.width = 10
-        self.size = 1
         self.initUI()
 
     def initUI(self):
@@ -123,12 +127,9 @@ class Example(QtGui.QWidget):
         palette.setColor(QtGui.QPalette.Background, QtGui.QColor(40, 40, 40))
         self.setPalette(palette)
 
-        scrollArea = QtGui.QScrollArea()
-        scrollArea.setWidget(self.image)
-        scrollArea.setGeometry(0, 0, 400, 700)
-        scrollArea.setBackgroundRole(QtGui.QPalette.Dark)
+        self.bitViewer = BitView(self)
         layout = QtGui.QGridLayout()
-        layout.addWidget(scrollArea, 0, 0, 2, 1)
+        layout.addWidget(self.bitViewer, 0, 0, 2, 1)
         layout.addWidget(btn, 0, 1)
         layout.addWidget(sld1, 0, 2)
         layout.addWidget(sld2, 0, 3)
@@ -139,57 +140,25 @@ class Example(QtGui.QWidget):
         self.setWindowTitle('Colors')
         self.show()
 
+
     def openFile(self):
         fname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File", "")
         with open(fname, "rb") as f:
             data = f.read()
-        bits = bitstring.Bits(bytes=data[:0x10000])
 
-        self.data = "".join([chr(x * 255) * 3 + '\xff' for x in bits])
-        # self.data = "\xFF" * len(self.data)
-        print "opened"
-        # print "loaded"
-        # self.repaint()
+        self.bitViewer.set_data(data[:0x10000])
         self.update()
-        # self.show()
 
     def changeSize(self, value):
-        print "yay"
-        self.size = value
-        # self.show()
+        self.bitViewer.size = value
         self.update()
 
     def changeValue(self, value):
-        self.width = value // 4
+        self.bitViewer.width = value // 4
         self.lbl.setText(str(value // 4))
         self.lbl.adjustSize()
-        # self.show()
         self.update()
 
-    def paintEvent(self, e):
-        self.drawImage()
-
-    def drawImage(self):
-        print "ThreadId", threading.currentThread()
-        data = self.data
-        print "a"
-        print len(data)
-        # print data
-        image = QtGui.QImage(self.data, self.width, len(data) / (self.width * 4), QtGui.QImage.Format_RGB32)
-        image = image.copy()
-        print "bla"
-        transform = QtGui.QTransform()
-        # transform.rotate(90)
-        print "size", self.size
-        transform.scale(self.size, self.size)
-        image = image.transformed(transform)
-        print  image.width(), image.height()
-        self.image.setGeometry(0, 0, image.width(), image.height())
-        pixmap = QtGui.QPixmap.fromImage(image, QtCore.Qt.AutoColor)
-        print "pixmap", pixmap.isNull()
-        print pixmap
-        self.image.clear()
-        self.image.setPixmap(pixmap)
 
     def mousePressEvent(self, event):
         print event.x(), event.y()
@@ -202,7 +171,7 @@ class Example(QtGui.QWidget):
 def main():
     try:
         app = QtGui.QApplication(sys.argv)
-        ex = Test()
+        ex = Example()
         app.exec_()
     except:
         import traceback
