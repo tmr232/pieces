@@ -16,7 +16,9 @@ def map_byte_to_pixels(color_on, color_off):
 
 
     map = [
-        "".join(pixel_on if get_bit8(byte, bit) else pixel_off for bit in xrange(8)) for byte in xrange(256)
+        "".join(pixel_on if get_bit8(byte, bit) else pixel_off
+                for bit in xrange(8))
+        for byte in xrange(256)
     ]
 
     return map
@@ -180,6 +182,11 @@ class Example(QtGui.QWidget):
         sld2.setRange(1, 10)
         sld2.valueChanged[int].connect(self.changeSize)
 
+        rol_slider = QtGui.QSlider(QtCore.Qt.Horizontal, self)
+        rol_slider.setRange(-7, 700)
+        rol_slider.setValue(0)
+        rol_slider.valueChanged[int].connect(self.RolChanged)
+
         btn = QtGui.QPushButton("Open", self)
         btn.move(700, 0)
         btn.clicked.connect(self.openFile)
@@ -191,14 +198,16 @@ class Example(QtGui.QWidget):
         self.setPalette(palette)
 
         self.bitViewer = BitView(self)
-        self.bitViewer.set_data("\0" * 32 + "\xff" + "\0" + "\x01")
-        self.bitViewer.set_data("\x55" * (0x10000 / 4))
+        self._data = ("\0" * 32 + "\xff" + "\0" + "\x01") * (0x1000 / 32)
+        self.bitViewer.set_data(self._data)
+        # self.bitViewer.set_data("\x55" * (0x1000 ))
         layout = QtGui.QGridLayout()
         layout.addWidget(self.bitViewer, 0, 0, 2, 1)
         layout.addWidget(btn, 0, 1)
         layout.addWidget(sld1, 0, 2)
         layout.addWidget(sld2, 0, 3)
         layout.addWidget(self.lbl, 1, 2)
+        layout.addWidget(rol_slider, 2, 0)
         self.setLayout(layout)
 
         self.setGeometry(300, 300, 350, 100)
@@ -206,12 +215,18 @@ class Example(QtGui.QWidget):
         self.show()
 
 
+    def RolChanged(self, value):
+        data = bytearray(self._data)
+        for index, byte in enumerate(data):
+            data[index] = pieces.bits.ROL8(byte, value)
+        self.bitViewer.set_data(str(data))
+
     def openFile(self):
         fname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File", "")
         with open(fname, "rb") as f:
             data = f.read()
-
-        self.bitViewer.set_data(data[:0x1000])
+        self._data = data[:0x1000]
+        self.bitViewer.set_data(self._data)
         self.update()
 
     def changeSize(self, value):
