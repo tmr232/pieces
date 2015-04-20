@@ -5,19 +5,39 @@ import threading
 import operator
 import pieces.bits
 
+
+def get_bit8(byte, bit):
+    return ((byte & 0xFF) >> (7 - bit)) & 1
+
+def map_byte_to_pixels(color_on, color_off):
+    print color_on
+    pixel_on = str(bytearray([color_on.blue(), color_on.green(), color_on.red(), color_on.alpha()]))
+    pixel_off = str(bytearray([color_off.blue(), color_off.green(), color_off.red(), color_off.alpha()]))
+
+
+    map = [
+        "".join(pixel_on if get_bit8(byte, bit) else pixel_off for bit in xrange(8)) for byte in xrange(256)
+    ]
+
+    return map
+
+
 class BitView(QtGui.QWidget):
     COLOR_ON = QtGui.QColor(120, 120, 255, 255)
     COLOR_OFF = QtGui.QColor(255, 255, 255, 255)
+    BYTE_TO_PIXELS = map_byte_to_pixels(COLOR_ON, COLOR_OFF)
 
     def __init__(self, *args, **kwargs):
         super(BitView, self).__init__(*args, **kwargs)
 
         self._size = 10
         self._width = 32
-        self._bits = None
         self._image_data = None
 
         self.initUI()
+
+    def byte_to_pixels(self, byte):
+        return self.BYTE_TO_PIXELS[byte]
 
     def initUI(self):
         self.imageLabel = QtGui.QLabel()
@@ -39,14 +59,13 @@ class BitView(QtGui.QWidget):
 
         image_data = self._image_data[:]
 
-        if len(self._bits) % width:
+        if (len(self._image_data) / 4) % width:
             image_data += self.make_extra_pixels(width)
 
         number_of_pixels = len(image_data) / 4
 
         height = (number_of_pixels / width)
 
-        print width, width * height, number_of_pixels, len(self._bits)
         image = QtGui.QImage(image_data,
                              width,
                              height,
@@ -61,16 +80,7 @@ class BitView(QtGui.QWidget):
         self.imageLabel.setPixmap(pixmap)
 
     def set_data(self, data):
-        self._bits = bitstring.Bits(bytes=data)
-        self._image_data = bytearray(len(self._bits) * 4)
-
-        for i, bit in enumerate(self._bits):
-            color = self.COLOR_ON if bit else self.COLOR_OFF
-            i *= 4
-            self._image_data[i + 0] = color.blue()
-            self._image_data[i + 1] = color.green()
-            self._image_data[i + 2] = color.red()
-            self._image_data[i + 3] = color.alpha()
+        self._image_data = "".join(self.byte_to_pixels(ord(byte)) for byte in data)
 
         self.update()
 
@@ -182,7 +192,7 @@ class Example(QtGui.QWidget):
 
         self.bitViewer = BitView(self)
         self.bitViewer.set_data("\0" * 32 + "\xff" + "\0" + "\x01")
-        self.bitViewer.set_data("\x55" * 0x10000)
+        self.bitViewer.set_data("\x55" * (0x10000 / 4))
         layout = QtGui.QGridLayout()
         layout.addWidget(self.bitViewer, 0, 0, 2, 1)
         layout.addWidget(btn, 0, 1)
